@@ -41,7 +41,8 @@ def get_admin_main_keyboard() -> ReplyKeyboardMarkup:
         keyboard=[
             [KeyboardButton(text="📂 Kataloglar"), KeyboardButton(text="➕ Katalog qo'shish"), KeyboardButton(text="🗑 Katalog o'chirish")],
             [KeyboardButton(text="📦 Mahsulotlar"), KeyboardButton(text="➕ Mahsulot qo'shish"), KeyboardButton(text="🗑 Mahsulot o'chirish")],
-            [KeyboardButton(text="✏️ Mahsulotni tahrirlash"), KeyboardButton(text="📢 Kanallar"), KeyboardButton(text="📋 Buyurtmalar")],
+            [KeyboardButton(text="✏️ Mahsulotni tahrirlash"), KeyboardButton(text="📋 Buyurtmalar")],
+            [KeyboardButton(text="📢 Kanallar"), KeyboardButton(text="➕ Kanal qo'shish"), KeyboardButton(text="🗑 Kanal o'chirish")],
             [KeyboardButton(text="📊 Statistika"), KeyboardButton(text="⚙️ Sozlamalar"), KeyboardButton(text="🚪 Chiqish")]
         ],
         resize_keyboard=True
@@ -154,10 +155,28 @@ def get_product_edit_fields_keyboard(product_id: int) -> InlineKeyboardMarkup:
 def get_channel_list_keyboard(channels: List[Channel]) -> InlineKeyboardMarkup:
     builder = []
     for ch in channels:
+        uname = ch.username or str(ch.channel_id)
         builder.append([
-            InlineKeyboardButton(text=f"📢 {ch.title}", callback_data="ignore"),
-            InlineKeyboardButton(text="🗑 O'chirish", callback_data=f"del_chan:{ch.id}")
+            InlineKeyboardButton(text=f"📢 {ch.title} ({uname})", callback_data="ignore"),
+            InlineKeyboardButton(text="🗑 O'chirish", callback_data=f"del_chan_ask:{ch.id}")
         ])
+    return InlineKeyboardMarkup(inline_keyboard=builder)
+
+
+def get_channel_delete_confirm_keyboard(channel_db_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[[
+            InlineKeyboardButton(text="✅ Ha, o'chirish", callback_data=f"del_chan_yes:{channel_db_id}"),
+            InlineKeyboardButton(text="❌ Bekor qilish", callback_data="del_chan_no")
+        ]]
+    )
+
+
+def get_channel_delete_keyboard(channels: List[Channel]) -> InlineKeyboardMarkup:
+    builder = []
+    for ch in channels:
+        uname = ch.username or str(ch.channel_id)
+        builder.append([InlineKeyboardButton(text=f"🗑 {ch.title} ({uname})", callback_data=f"del_chan_ask:{ch.id}")])
     return InlineKeyboardMarkup(inline_keyboard=builder)
 
 

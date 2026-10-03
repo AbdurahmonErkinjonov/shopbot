@@ -25,7 +25,8 @@ from keyboards import (
     get_channels_multi_select_keyboard, get_category_delete_keyboard,
     get_category_delete_confirm_keyboard, get_product_delete_keyboard,
     get_product_delete_confirm_keyboard, get_product_edit_keyboard,
-    get_product_edit_fields_keyboard, get_channel_list_keyboard, get_order_status_keyboard
+    get_product_edit_fields_keyboard, get_channel_list_keyboard, get_order_status_keyboard,
+    get_channel_delete_confirm_keyboard, get_channel_delete_keyboard
 )
 
 logger = logging.getLogger(__name__)
@@ -635,6 +636,14 @@ async def admin_channels_list(message: Message, session: AsyncSession):
         return
     await message.answer("📢 <b>ULANGAN TELEGRAM KANALLAR:</b>", reply_markup=get_channel_list_keyboard(chans), parse_mode="HTML")
 
+@admin_router.message(F.text == "🗑 Kanal o'chirish")
+async def admin_del_chan_start(message: Message, session: AsyncSession):
+    chans = await get_channels(session)
+    if not chans:
+        await message.answer("📢 Hech qanday kanal ulanmagan.")
+        return
+    await message.answer("🗑 <b>O'chirmoqchi bo'lgan kanalini tanlang:</b>", reply_markup=get_channel_delete_keyboard(chans), parse_mode="HTML")
+
 @admin_router.message(F.text == "➕ Kanal qo'shish")
 async def admin_add_chan_start(message: Message, state: FSMContext):
     await state.set_state(ChannelState.waiting_for_channel_id)
@@ -658,10 +667,32 @@ async def admin_add_chan_save(message: Message, session: AsyncSession, state: FS
     except Exception as e:
         await message.answer(f"❌ Xatolik: {e}")
 
-@admin_router.callback_query(F.data.startswith("del_chan:"))
-async def admin_del_chan(callback: CallbackQuery, session: AsyncSession):
+@admin_router.callback_query(F.data.startswith("del_chan_ask:"))
+async def admin_del_chan_ask(callback: CallbackQuery, session: AsyncSession):
+    chan_db_id = int(callback.data.split(":")[1])
+    chans = await get_channels(session)
+    ch = next((c for c in chans if c.id == chan_db_id), None)
+    if not ch:
+        await callback.answer("Kanal topilmadi", show_alert=True)
+        return
+    uname = ch.username or str(ch.channel_id)
+    await callback.message.edit_text(
+        f"⚠️ <b>{ch.title}</b> ({uname}) kanalini o'chirishni tasdiqlaysizmi?\n\n"
+        "Bu kanal mahsulotlarga bog'liq bo'lsa, aloqa uziladi.",
+        reply_markup=get_channel_delete_confirm_keyboard(ch.id),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@admin_router.callback_query(F.data.startswith("del_chan_yes:"))
+async def admin_del_chan_yes(callback: CallbackQuery, session: AsyncSession):
     await delete_channel(session, int(callback.data.split(":")[1]))
-    await callback.message.edit_text("✅ Kanal o'chirildi.", parse_mode="HTML")
+    await callback.message.edit_text("✅ Kanal muvaffaqiyatli o'chirildi.", parse_mode="HTML")
+    await callback.answer()
+
+@admin_router.callback_query(F.data == "del_chan_no")
+async def admin_del_chan_no(callback: CallbackQuery):
+    await callback.message.edit_text("Bekor qilindi.")
     await callback.answer()
 
 # ADMIN ORDERS & STATS & SETTINGS
